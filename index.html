@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
+<title>理财羊毛记账本</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;margin:0;padding:0}
+body{background:#f1f5f9;padding:12px;max-width:720px;margin:0 auto;font-size:14px;color:#1e293b;padding-bottom:48px}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px #00000010}
+h2{margin-bottom:12px;font-size:16px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.field{margin-bottom:0}
+label{display:block;font-size:12px;color:#64748b;margin-bottom:4px}
+input,select{padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;width:100%;background:#fff;color:#1e293b}
+input:focus,select:focus{outline:none;border-color:#2563eb}
+.hint{font-size:12px;color:#2563eb;margin:6px 0;min-height:16px}
+button.primary{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;width:100%;margin-top:6px;cursor:pointer}
+button.ghost{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:14px;width:100%;margin-top:8px;cursor:pointer}
+.chips{display:flex;gap:8px;margin-bottom:10px}
+.chip{flex:1;text-align:center;padding:8px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:13px;border:1px solid transparent;cursor:pointer}
+.chip.on{background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe;font-weight:bold}
+.table-wrap{overflow-x:auto;margin:0 -16px;padding:0 16px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
+th,td{border-bottom:1px solid #f1f5f9;padding:9px 6px;text-align:left;white-space:nowrap}
+th{background:#f8fafc;color:#64748b;font-weight:600}
+tr.warn td{background:#fff7ed}
+.warn-tag{color:#c2410c;font-weight:bold}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.remark{font-size:11px;color:#94a3b8;white-space:normal;max-width:140px}
+.op{display:flex;gap:4px}
+.op button{border:none;border-radius:6px;padding:6px 8px;font-size:12px;color:#fff;cursor:pointer}
+.redeem{background:#10b981}.edit{background:#3b82f6}.del{background:#ef4444}
+.alert{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:13px;display:none}
+.alert.show{display:block}
+.alert.t{font-weight:bold;margin-bottom:4px}
+.sum{background:#ecfdf5;color:#047857;padding:12px;border-radius:10px;margin-top:12px;font-weight:bold;font-size:14px;line-height:1.6}
+.tools{display:flex;gap:8px;margin-top:10px}
+.tools button{flex:1;background:#f8fafc;border:1px solid #e2e8f0;color:#334155;border-radius:8px;padding:9px;font-size:13px;cursor:pointer}
+.foot{font-size:12px;color:#94a3b8;text-align:center;line-height:1.8;margin-top:6px}
+</style>
+</head>
+<body>
+
+<div class="card">
+<h2 id="formTitle">📝 添加理财记录</h2>
+<div class="row">
+<div class="field"><label>产品名称 *</label><input id="name" placeholder="如 兴全恒惠30天"></div>
+<div class="field"><label>实付本金（元）*</label><input id="money" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+</div>
+<div class="row">
+<div class="field"><label>预估收益（元）</label><input id="expectProfit" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+<div class="field"><label>购买日期 *</label><input id="startDate" type="date"></div>
+</div>
+<div class="row">
+<div class="field"><label>锁定期天数 *</label><input id="holdDay" type="number" inputmode="numeric" placeholder="如 30"></div>
+<div class="field"><label>状态</label><select id="status"><option value="holding">⏳ 持有中</option><option value="done">✅ 已到期赎回</option></select></div>
+</div>
+<div class="hint" id="endPreview"></div>
+<div class="field"><label>备注</label><input id="remark" placeholder="如 不可提前赎回 / 等红包到账再赎"></div>
+<button class="primary" id="saveBtn" onclick="saveItem()">💾 保存记录</button>
+<button class="ghost" id="cancelBtn" style="display:none" onclick="resetForm()">取消编辑</button>
+</div>
+
+<div class="card" id="listCard">
+<h2>📊 我的理财羊毛清单</h2>
+<div class="chips">
+<div class="chip on" data-f="all" onclick="setFilter('all')">全部</div>
+<div class="chip" data-f="holding" onclick="setFilter('holding')">持有中</div>
+<div class="chip" data-f="done" onclick="setFilter('done')">已赎回</div>
+</div>
+<div class="alert" id="alertBox"></div>
+<div class="table-wrap"><table>
+<thead><tr><th>产品</th><th class="num">本金</th><th>到期日</th><th class="num">预估收益</th><th class="num">年化</th><th>状态</th><th>操作</th></tr></thead>
+<tbody id="listBody"></tbody>
+</table></div>
+<div class="sum" id="sumBox"></div>
+<div class="tools">
+<button onclick="exportJSON()">📤 导出备份</button>
+<button onclick="document.getElementById('importFile').click()">📥 导入备份</button>
+</div>
+<input type="file" id="importFile" accept=".json,application/json" style="display:none">
+</div>
+
+<div class="foot">🔒 记录只保存在本机浏览器，不会上传到任何服务器<br>建议定期「导出备份」，换手机时「导入备份」即可迁移</div>
+
+<script>
+"use strict";
+var LS_KEY = "licaiYangmaoListV1";
+var defaultData = [
+{name:"兴全恒惠30天超短债", money:1077.82, expectProfit:12.00, startDate:"2026-10-20", holdDay:30, endDate:"2026-11-19", status:"holding", remark:"30天持有期，不可提前赎回"},
+{name:"京东小金库7天理财", money:2000.00, expectProfit:4.28, startDate:"2026-10-20", holdDay:7, endDate:"2026-10-27", status:"holding", remark:"等8.28红包到账再赎回"}
+];
+
+var data = loadData();
+var editIndex = -1;
+var curFilter = "all";
+
+function loadData(){
+try{
+var raw = localStorage.getItem(LS_KEY);
+if(raw){
+var arr = JSON.parse(raw);
+if(Object.prototype.toString.call(arr)==="[object Array]") return arr;
+}
+}catch(e){}
+return JSON.parse(JSON.stringify(defaultData));
+}
+function saveData(){
+try{ localStorage.setItem(LS_KEY, JSON.stringify(data));}
+catch(e){ alert("保存失败：浏览器存储不可用");}
+}
+function esc(s){
+return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function parseD(s){
+var p = String(s).split("-");
+return new Date(+p[0], +p[1]-1, +p[2]);
+}
+function fmtD(d){
+var m = String(d.getMonth()+1), day = String(d.getDate());
+return d.getFullYear()+"-"+(m.length<2?"0"+m:m)+"-"+(day.length<2?"0"+day:day);
+}
+function addDays(s,n){
+var d = parseD(s); d.setDate(d.getDate()+n); return fmtD(d);
+}
+function daysLeft(endS){
+var t = new Date(); t.setHours(0,0,0,0);
+return Math.round((parseD(endS)-t)/86400000);
+}
+function annualize(p,m,days){
+p=+p; m=+m; days=+days;
+if(!(m>0)||!(days>0)||isNaN(p)) return "—";
+return (p/m*365/days*100).toFixed(2)+"%";
+}
+function money(n){ n=+n; return isNaN(n)?"—":n.toFixed(2);}
+
+function updateEndPreview(){
+var s = document.getElementById("startDate").value;
+var h = parseInt(document.getElementById("holdDay").value,10);
+var el = document.getElementById("endPreview");
+el.textContent = (s && h>0)? "到期日："+addDays(s,h): "";
+}
+
+function saveItem(){
+var name = document.getElementById("name").value.trim();
+var moneyV = parseFloat(document.getElementById("money").value);
+var profitV = parseFloat(document.getElementById("expectProfit").value)||0;
+var startDate = document.getElementById("startDate").value;
+var holdDay = parseInt(document.getElementById("holdDay").value,10);
+var status = document.getElementById("status").value;
+var remark = document.getElementById("remark").value.trim();
+if(!name){ alert("请填写产品名称"); return;}
+if(!(moneyV>0)){ alert("请填写实付本金（大于0）"); return;}
+if(!startDate){ alert("请选择购买日期"); return;}
+if(!(holdDay>0)){ alert("请填写锁定期天数（大于0）"); return;}
+var item = {name:name, money:Math.round(moneyV*100)/100, expectProfit:Math.round(profitV*100)/100,
+startDate:startDate, holdDay:holdDay, endDate:addDays(startDate,holdDay), status:status, remark:remark};
+if(editIndex>=0){ data[editIndex]=item;} else { data.push(item);}
+saveData(); resetForm(); render();
+document.getElementById("listCard").scrollIntoView();
+}
+
+function resetForm(){
+["name","money","expectProfit","startDate","holdDay","remark"].forEach(function(id){ document.getElementById(id).value="";});
+document.getElementById("status").value="holding";
+document.getElementById("endPreview").textContent="";
+editIndex=-1;
+document.getElementById("formTitle").textContent="📝 添加理财记录";
+document.getElementById("saveBtn").textContent="💾 保存记录";
+document.getElementById("cancelBtn").style.display="none";
+}
+
+function editItem(i){
+var it=data[i]; if(!it) return;
+document.getElementById("name").value=it.name;
+document.getElementById("money").value=it.money;
+document.getElementById("expectProfit").value=it.expectProfit;
+document.getElementById("startDate").value=it.startDate;
+document.getElementById("holdDay").value=it.holdDay;
+document.getElementById("status").value=it.status;
+document.getElementById("remark").value=it.remark||"";
+updateEndPreview();
+editIndex=i;
+document.getElementById("formTitle").textContent="✏️ 正在编辑："+it.name;
+document.getElementById("saveBtn").textContent="💾 保存修改";
+document.getElementById("cancelBtn").style.display="block";
+window.scrollTo(0,0);
+}
+
+function delItem(i){
+var it=data[i]; if(!it) return;
+if(!confirm("确定删除这条记录吗？")) return;
+data.splice(i,1);
+if(editIndex===i) resetForm(); else if(editIndex>i) editIndex--;
+saveData(); render();
+}
+
+function redeemItem(i){
+var it=data[i]; if(!it) return;
+it.status="done"; saveData(); render();
+}
+
+function setFilter(f){
+curFilter=f;
+var chips=document.querySelectorAll(".chip");
+for(var k=0;k<chips.length;k++){ chips[k].classList.toggle("on", chips[k].getAttribute("data-f")===f);}
+render();
+}
+
+function rowHTML(it,i){
+var d=daysLeft(it.endDate), cd, warn=false;
+if(it.status==="holding"){
+if(d>0){ cd="剩"+d+"天"; if(d<=3) warn=true;}
+else if(d===0){ cd="今天到期"; warn=true;}
+else { cd="逾期"+(-d)+"天"; warn=true;}
+} else { cd="—";}
+var statusText = it.status==="holding"? "⏳持有中": "✅已赎回";
+var ops = it.status==="holding"
+? '<button class="redeem" onclick="redeemItem('+i+')">赎回</button><button class="edit" onclick="editItem('+i+')">编辑</button><button class="del" onclick="delItem('+i+')">删除</button>'
+: '<button class="edit" onclick="editItem('+i+')">编辑</button><button class="del" onclick="delItem('+i+')">删除</button>';
+return '<tr class="'+(warn?"warn":"")+'">'+
+'<td>'+esc(it.name)+(it.remark?'<div class="remark">'+esc(it.remark)+'</div>':"")+'</td>'+
+'<td class="num">'+money(it.money)+'</td>'+
+'<td>'+esc(it.endDate)+'<div class="'+(warn?"warn-tag":"")+'" style="font-size:12px">'+cd+'</div></td>'+
+'<td class="num">'+money(it.expectProfit)+'</td>'+
+'<td class="num">'+annualize(it.expectProfit,it.money,it.holdDay)+'</td>'+
+'<td>'+statusText+'</td>'+
+'<td><div class="op">'+ops+'</div></td></tr>';
+}
+
+function render(){
+var tbody=document.getElementById("listBody");
+var idxs=[];
+for(var i=0;i<data.length;i++){ if(curFilter==="all"||data[i].status===curFilter) idxs.push(i);}
+idxs.sort(function(a,b){
+var sa=data[a].status, sb=data[b].status;
+if(sa!==sb) return sa==="holding"?-1:1;
+if(sa==="holding") return data[a].endDate<data[b].endDate?-1:1;
+return data[a].endDate>data[b].endDate?-1:1;
+});
+tbody.innerHTML = idxs.length
+? idxs.map(function(i){ return rowHTML(data[i],i);}).join("")
+: '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px">暂无记录，在上面添加一条吧 👆</td></tr>';
+
+var warns=[];
+data.forEach(function(it){
+if(it.status!=="holding") return;
+var d=daysLeft(it.endDate);
+if(d<0) warns.push("已于 "+it.endDate+" 到期，请尽快赎回！");
+else if(d<=3) warns.push("将于 "+it.endDate+" 到期（"+(d===0?"今天":"还剩"+d+"天")+"）");
+});
+var ab=document.getElementById("alertBox");
+if(warns.length){
+ab.innerHTML='<div class="t">🔔 到期提醒</div>'+warns.map(function(w){ return "<div>• "+esc(w)+"</div>";}).join("");
+ab.classList.add("show");
+} else { ab.classList.remove("show"); ab.innerHTML="";}
+
+var hp=0, hn=0, hprofit=0, dprofit=0;
+data.forEach(function(it){
+if(it.status==="holding"){ hn++; hp+=+it.money||0; hprofit+=+it.expectProfit||0;}
+else { dprofit+=+it.expectProfit||0;}
+});
+document.getElementById("sumBox").innerHTML =
+"持有中 "+hn+" 笔 · 本金 "+hp.toFixed(2)+" 元 · 预估收益 "+hprofit.toFixed(2)+" 元"+
+(dprofit>0?'<div style="font-weight:normal;font-size:12px;margin-top:4px">已落袋收益：'+dprofit.toFixed(2)+' 元</div>':"");
+}
+
+function exportJSON(){
+if(!data.length){ alert("暂无数据可导出"); return;}
+var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+var a=document.createElement("a");
+var t=new Date();
+var ts=t.getFullYear()+String(t.getMonth()+1)+(t.getMonth()+1<10?"":"")+String(t.getDate());
+a.href=URL.createObjectURL(blob);
+a.download="licai-yangmao-backup-"+t.getFullYear()+"-"+(t.getMonth()+1)+"-"+t.getDate()+".json";
+document.body.appendChild(a); a.click();
+setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove();},500);
+}
+function importJSON(file){
+var r=new FileReader();
+r.onload=function(){
+try{
+var arr=JSON.parse(r.result);
+if(Object.prototype.toString.call(arr)!=="[object Array]"||!arr.length) throw new Error("empty");
+for(var k=0;k<arr.length;k++){ if(!arr[k]||typeof arr[k].name!=="string") throw new Error("bad");}
+if(!confirm("备份中有 "+arr.length+" 条记录，将替换当前全部 "+data.length+" 条，继续吗？")) return;
+data=arr; editIndex=-1; resetForm(); saveData(); render();
+alert("导入成功");
+}catch(e){ alert("导入失败：文件不是有效的备份");}
+};
+r.readAsText(file);
+}
+
+document.getElementById("startDate").addEventListener("change",updateEndPreview);
+document.getElementById("holdDay").addEventListener("input",updateEndPreview);
+document.getElementById("importFile").addEventListener("change",function(e){
+if(e.target.files[0]) importJSON(e.target.files[0]);
+e.target.value="";
+});
+render();
+</script>
+</body>
+</html>
