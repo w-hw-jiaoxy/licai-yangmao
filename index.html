@@ -33,13 +33,17 @@ tr.warn td{background:#fff7ed}
 .warn-tag{color:#c2410c;font-weight:bold}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .remark{font-size:11px;color:#94a3b8;white-space:normal;max-width:140px}
+.tag{font-size:10px;padding:2px 6px;border-radius:4px;margin-right:4px;vertical-align:1px}
+.tag.licai{background:#dbeafe;color:#1d4ed8}
+.tag.loan{background:#fee2e2;color:#b91c1c}
 .op{display:flex;gap:4px}
 .op button{border:none;border-radius:6px;padding:6px 8px;font-size:12px;color:#fff;cursor:pointer}
 .redeem{background:#10b981}.edit{background:#3b82f6}.del{background:#ef4444}
 .alert{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:13px;display:none}
 .alert.show{display:block}
 .alert.t{font-weight:bold;margin-bottom:4px}
-.sum{background:#ecfdf5;color:#047857;padding:12px;border-radius:10px;margin-top:12px;font-weight:bold;font-size:14px;line-height:1.6}
+.sum{background:#ecfdf5;color:#047857;padding:12px;border-radius:10px;margin-top:12px;font-weight:bold;font-size:14px;line-height:1.7}
+.sum.loan-line{color:#b91c1c}
 .tools{display:flex;gap:8px;margin-top:10px}
 .tools button{flex:1;background:#f8fafc;border:1px solid #e2e8f0;color:#334155;border-radius:8px;padding:9px;font-size:13px;cursor:pointer}
 .foot{font-size:12px;color:#94a3b8;text-align:center;line-height:1.8;margin-top:6px}
@@ -48,35 +52,38 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 <body>
 
 <div class="card">
-<h2 id="formTitle">📝 添加理财记录</h2>
+<h2 id="formTitle">📝 添加记录</h2>
 <div class="row">
+<div class="field"><label>类型</label><select id="kind" onchange="toggleKind()"><option value="licai">💰 理财</option><option value="loan">💳 借款</option></select></div>
 <div class="field"><label>产品名称 *</label><input id="name" placeholder="如 兴全恒惠30天"></div>
-<div class="field"><label>实付本金（元）*</label><input id="money" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
 </div>
 <div class="row">
-<div class="field"><label>预估收益（元）</label><input id="expectProfit" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
-<div class="field"><label>购买日期 *</label><input id="startDate" type="date"></div>
+<div class="field"><label id="moneyLabel">实付本金（元）*</label><input id="money" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+<div class="field" id="profitField"><label>预估收益（元）</label><input id="expectProfit" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
 </div>
 <div class="row">
-<div class="field"><label>锁定期天数 *</label><input id="holdDay" type="number" inputmode="numeric" placeholder="如 30"></div>
-<div class="field"><label>状态</label><select id="status"><option value="holding">⏳ 持有中</option><option value="done">✅ 已到期赎回</option></select></div>
+<div class="field"><label id="dateLabel">购买日期 *</label><input id="startDate" type="date"></div>
+<div class="field"><label id="dayLabel">锁定期天数 *</label><input id="holdDay" type="number" inputmode="numeric" placeholder="如 30"></div>
+</div>
+<div class="row">
+<div class="field"><label>状态</label><select id="status"><option value="holding">⏳ 持有中</option><option value="done">✅ 已完成</option></select></div>
+<div class="field"><label>备注</label><input id="remark" placeholder="如 不可提前赎回"></div>
 </div>
 <div class="hint" id="endPreview"></div>
-<div class="field"><label>备注</label><input id="remark" placeholder="如 不可提前赎回 / 等红包到账再赎"></div>
 <button class="primary" id="saveBtn" onclick="saveItem()">💾 保存记录</button>
 <button class="ghost" id="cancelBtn" style="display:none" onclick="resetForm()">取消编辑</button>
 </div>
 
 <div class="card" id="listCard">
-<h2>📊 我的理财羊毛清单</h2>
+<h2>📊 我的记账清单</h2>
 <div class="chips">
 <div class="chip on" data-f="all" onclick="setFilter('all')">全部</div>
 <div class="chip" data-f="holding" onclick="setFilter('holding')">持有中</div>
-<div class="chip" data-f="done" onclick="setFilter('done')">已赎回</div>
+<div class="chip" data-f="done" onclick="setFilter('done')">已完成</div>
 </div>
 <div class="alert" id="alertBox"></div>
 <div class="table-wrap"><table>
-<thead><tr><th>产品</th><th class="num">本金</th><th>到期日</th><th class="num">预估收益</th><th class="num">年化</th><th>状态</th><th>操作</th></tr></thead>
+<thead><tr><th>项目</th><th class="num">金额</th><th>到期日</th><th class="num">预估收益</th><th class="num">年化</th><th>状态</th><th>操作</th></tr></thead>
 <tbody id="listBody"></tbody>
 </table></div>
 <div class="sum" id="sumBox"></div>
@@ -92,9 +99,11 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 <script>
 "use strict";
 var LS_KEY = "licaiYangmaoListV1";
+var MIG_KEY = "licaiYangmaoMigratedV2";
 var defaultData = [
-{name:"兴全恒惠30天超短债", money:1077.82, expectProfit:12.00, startDate:"2026-10-20", holdDay:30, endDate:"2026-11-19", status:"holding", remark:"30天持有期，不可提前赎回"},
-{name:"京东小金库7天理财", money:2000.00, expectProfit:4.28, startDate:"2026-10-20", holdDay:7, endDate:"2026-10-27", status:"holding", remark:"等8.28红包到账再赎回"}
+{kind:"licai", name:"兴全恒惠30天超短债", money:1077.82, expectProfit:12.00, startDate:"2026-10-20", holdDay:30, endDate:"2026-11-19", status:"holding", remark:"30天持有期，不可提前赎回"},
+{kind:"licai", name:"京东小金库7天理财", money:2000.00, expectProfit:4.28, startDate:"2026-10-20", holdDay:7, endDate:"2026-10-27", status:"holding", remark:"等8.28红包到账再赎回"},
+{kind:"loan", name:"微粒贷借款", money:30000.00, expectProfit:0, startDate:"2026-10-14", holdDay:31, endDate:"2026-11-14", status:"holding", remark:"30天免息；逾期21.6%单利+上征信"}
 ];
 
 var data = loadData();
@@ -102,19 +111,38 @@ var editIndex = -1;
 var curFilter = "all";
 
 function loadData(){
+var arr = null;
 try{
 var raw = localStorage.getItem(LS_KEY);
 if(raw){
-var arr = JSON.parse(raw);
-if(Object.prototype.toString.call(arr)==="[object Array]") return arr;
+var parsed = JSON.parse(raw);
+if(Object.prototype.toString.call(parsed)==="[object Array]") arr = parsed;
 }
 }catch(e){}
-return JSON.parse(JSON.stringify(defaultData));
+if(!arr) arr = JSON.parse(JSON.stringify(defaultData));
+for(var i=0;i<arr.length;i++){ if(!arr[i].kind) arr[i].kind = "licai";}
+return arr;
 }
 function saveData(){
 try{ localStorage.setItem(LS_KEY, JSON.stringify(data));}
 catch(e){ alert("保存失败：浏览器存储不可用");}
 }
+/* 一次性迁移：给老用户补一条微粒贷借款记录 */
+try{
+if(!localStorage.getItem(MIG_KEY)){
+var hasLoan = false;
+for(var mi=0;mi<data.length;mi++){
+if(data[mi].kind==="loan" || /微粒贷/.test(data[mi].name||"")){ hasLoan = true; break;}
+}
+if(!hasLoan){
+data.push({kind:"loan", name:"微粒贷借款", money:30000.00, expectProfit:0, startDate:"2026-10-14", holdDay:31, endDate:"2026-11-14", status:"holding", remark:"30天免息；逾期21.6%单利+上征信"});
+saveData();
+}
+localStorage.setItem(MIG_KEY, "1");
+}
+}catch(e){}
+
+function isLoan(it){ return it.kind === "loan";}
 function esc(s){
 return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
@@ -140,26 +168,39 @@ return (p/m*365/days*100).toFixed(2)+"%";
 }
 function money(n){ n=+n; return isNaN(n)?"—":n.toFixed(2);}
 
+function toggleKind(){
+var loan = document.getElementById("kind").value === "loan";
+document.getElementById("profitField").style.display = loan? "none": "";
+document.getElementById("moneyLabel").textContent = loan? "借款金额（元） *": "实付本金（元） *";
+document.getElementById("dateLabel").textContent = loan? "借款日期 *": "购买日期 *";
+document.getElementById("dayLabel").textContent = loan? "借款天数 *": "锁定期天数 *";
+document.getElementById("name").placeholder = loan? "如 微粒贷借款": "如 兴全恒惠30天";
+updateEndPreview();
+}
+
 function updateEndPreview(){
 var s = document.getElementById("startDate").value;
 var h = parseInt(document.getElementById("holdDay").value,10);
+var loan = document.getElementById("kind").value === "loan";
 var el = document.getElementById("endPreview");
-el.textContent = (s && h>0)? "到期日："+addDays(s,h): "";
+el.textContent = (s && h>0)? (loan? "还款日：": "到期日：") + addDays(s,h): "";
 }
 
 function saveItem(){
+var kind = document.getElementById("kind").value;
+var loan = kind === "loan";
 var name = document.getElementById("name").value.trim();
 var moneyV = parseFloat(document.getElementById("money").value);
-var profitV = parseFloat(document.getElementById("expectProfit").value)||0;
+var profitV = loan? 0: (parseFloat(document.getElementById("expectProfit").value)||0);
 var startDate = document.getElementById("startDate").value;
 var holdDay = parseInt(document.getElementById("holdDay").value,10);
 var status = document.getElementById("status").value;
 var remark = document.getElementById("remark").value.trim();
-if(!name){ alert("请填写产品名称"); return;}
-if(!(moneyV>0)){ alert("请填写实付本金（大于0）"); return;}
-if(!startDate){ alert("请选择购买日期"); return;}
-if(!(holdDay>0)){ alert("请填写锁定期天数（大于0）"); return;}
-var item = {name:name, money:Math.round(moneyV*100)/100, expectProfit:Math.round(profitV*100)/100,
+if(!name){ alert("请填写名称"); return;}
+if(!(moneyV>0)){ alert(loan? "请填写借款金额（大于0）": "请填写实付本金（大于0）"); return;}
+if(!startDate){ alert(loan? "请选择借款日期": "请选择购买日期"); return;}
+if(!(holdDay>0)){ alert("请填写天数（大于0）"); return;}
+var item = {kind:kind, name:name, money:Math.round(moneyV*100)/100, expectProfit:Math.round(profitV*100)/100,
 startDate:startDate, holdDay:holdDay, endDate:addDays(startDate,holdDay), status:status, remark:remark};
 if(editIndex>=0){ data[editIndex]=item;} else { data.push(item);}
 saveData(); resetForm(); render();
@@ -168,16 +209,18 @@ document.getElementById("listCard").scrollIntoView();
 
 function resetForm(){
 ["name","money","expectProfit","startDate","holdDay","remark"].forEach(function(id){ document.getElementById(id).value="";});
+document.getElementById("kind").value="licai";
 document.getElementById("status").value="holding";
-document.getElementById("endPreview").textContent="";
+toggleKind();
 editIndex=-1;
-document.getElementById("formTitle").textContent="📝 添加理财记录";
+document.getElementById("formTitle").textContent="📝 添加记录";
 document.getElementById("saveBtn").textContent="💾 保存记录";
 document.getElementById("cancelBtn").style.display="none";
 }
 
 function editItem(i){
 var it=data[i]; if(!it) return;
+document.getElementById("kind").value = it.kind || "licai";
 document.getElementById("name").value=it.name;
 document.getElementById("money").value=it.money;
 document.getElementById("expectProfit").value=it.expectProfit;
@@ -185,7 +228,7 @@ document.getElementById("startDate").value=it.startDate;
 document.getElementById("holdDay").value=it.holdDay;
 document.getElementById("status").value=it.status;
 document.getElementById("remark").value=it.remark||"";
-updateEndPreview();
+toggleKind();
 editIndex=i;
 document.getElementById("formTitle").textContent="✏️ 正在编辑："+it.name;
 document.getElementById("saveBtn").textContent="💾 保存修改";
@@ -213,24 +256,30 @@ for(var k=0;k<chips.length;k++){ chips[k].classList.toggle("on", chips[k].getAtt
 render();
 }
 
+function statusText(it){
+if(isLoan(it)) return it.status==="holding"? "⏳待还款": "✅已还款";
+return it.status==="holding"? "⏳持有中": "✅已赎回";
+}
+
 function rowHTML(it,i){
+var loan = isLoan(it);
 var d=daysLeft(it.endDate), cd, warn=false;
 if(it.status==="holding"){
 if(d>0){ cd="剩"+d+"天"; if(d<=3) warn=true;}
-else if(d===0){ cd="今天到期"; warn=true;}
+else if(d===0){ cd= loan? "今天还款": "今天到期"; warn=true;}
 else { cd="逾期"+(-d)+"天"; warn=true;}
 } else { cd="—";}
-var statusText = it.status==="holding"? "⏳持有中": "✅已赎回";
 var ops = it.status==="holding"
-? '<button class="redeem" onclick="redeemItem('+i+')">赎回</button><button class="edit" onclick="editItem('+i+')">编辑</button><button class="del" onclick="delItem('+i+')">删除</button>'
+? '<button class="redeem" onclick="redeemItem('+i+')">'+(loan?"还款":"赎回")+'</button><button class="edit" onclick="editItem('+i+')">编辑</button><button class="del" onclick="delItem('+i+')">删除</button>'
 : '<button class="edit" onclick="editItem('+i+')">编辑</button><button class="del" onclick="delItem('+i+')">删除</button>';
+var tag = '<span class="tag '+(loan?"loan":"licai")+'">'+(loan?"借款":"理财")+'</span>';
 return '<tr class="'+(warn?"warn":"")+'">'+
-'<td>'+esc(it.name)+(it.remark?'<div class="remark">'+esc(it.remark)+'</div>':"")+'</td>'+
+'<td>'+tag+esc(it.name)+(it.remark?'<div class="remark">'+esc(it.remark)+'</div>':"")+'</td>'+
 '<td class="num">'+money(it.money)+'</td>'+
 '<td>'+esc(it.endDate)+'<div class="'+(warn?"warn-tag":"")+'" style="font-size:12px">'+cd+'</div></td>'+
-'<td class="num">'+money(it.expectProfit)+'</td>'+
-'<td class="num">'+annualize(it.expectProfit,it.money,it.holdDay)+'</td>'+
-'<td>'+statusText+'</td>'+
+'<td class="num">'+(loan?"—":money(it.expectProfit))+'</td>'+
+'<td class="num">'+(loan?"—":annualize(it.expectProfit,it.money,it.holdDay))+'</td>'+
+'<td>'+statusText(it)+'</td>'+
 '<td><div class="op">'+ops+'</div></td></tr>';
 }
 
@@ -251,9 +300,10 @@ tbody.innerHTML = idxs.length
 var warns=[];
 data.forEach(function(it){
 if(it.status!=="holding") return;
+var loan=isLoan(it);
 var d=daysLeft(it.endDate);
-if(d<0) warns.push("已于 "+it.endDate+" 到期，请尽快赎回！");
-else if(d<=3) warns.push("将于 "+it.endDate+" 到期（"+(d===0?"今天":"还剩"+d+"天")+"）");
+if(d<0) warns.push("已于 "+it.endDate+(loan?" 到期未还，请尽快还款！":" 到期，请尽快赎回！"));
+else if(d<=3) warns.push("将于 "+it.endDate+" 到期"+(loan?"需还款":"")+"（"+(d===0?(loan?"今天":"今天"):"还剩"+d+"天")+"）");
 });
 var ab=document.getElementById("alertBox");
 if(warns.length){
@@ -261,14 +311,17 @@ ab.innerHTML='<div class="t">🔔 到期提醒</div>'+warns.map(function(w){ ret
 ab.classList.add("show");
 } else { ab.classList.remove("show"); ab.innerHTML="";}
 
-var hp=0, hn=0, hprofit=0, dprofit=0;
+var hp=0, hn=0, hprofit=0, dprofit=0, lp=0, ln=0, learnest="";
 data.forEach(function(it){
-if(it.status==="holding"){ hn++; hp+=+it.money||0; hprofit+=+it.expectProfit||0;}
+if(isLoan(it)){
+if(it.status==="holding"){ ln++; lp+=+it.money||0; if(!learnest||it.endDate<learnest) learnest=it.endDate;}
+} else if(it.status==="holding"){ hn++; hp+=+it.money||0; hprofit+=+it.expectProfit||0;}
 else { dprofit+=+it.expectProfit||0;}
 });
-document.getElementById("sumBox").innerHTML =
-"持有中 "+hn+" 笔 · 本金 "+hp.toFixed(2)+" 元 · 预估收益 "+hprofit.toFixed(2)+" 元"+
-(dprofit>0?'<div style="font-weight:normal;font-size:12px;margin-top:4px">已落袋收益：'+dprofit.toFixed(2)+' 元</div>':"");
+var html = "💰 理财：持有中 "+hn+" 笔 · 本金 "+hp.toFixed(2)+" 元 · 预估收益 "+hprofit.toFixed(2)+" 元";
+if(dprofit>0) html += '<div style="font-weight:normal;font-size:12px">已落袋收益：'+dprofit.toFixed(2)+' 元</div>';
+if(ln>0) html += '<div class="loan-line">💳 借款：待还 '+ln+' 笔 · '+lp.toFixed(2)+' 元'+(learnest?' · 最早 '+learnest+' 到期':"")+'</div>';
+document.getElementById("sumBox").innerHTML = html;
 }
 
 function exportJSON(){
@@ -276,7 +329,6 @@ if(!data.length){ alert("暂无数据可导出"); return;}
 var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
 var a=document.createElement("a");
 var t=new Date();
-var ts=t.getFullYear()+String(t.getMonth()+1)+(t.getMonth()+1<10?"":"")+String(t.getDate());
 a.href=URL.createObjectURL(blob);
 a.download="licai-yangmao-backup-"+t.getFullYear()+"-"+(t.getMonth()+1)+"-"+t.getDate()+".json";
 document.body.appendChild(a); a.click();
@@ -288,9 +340,13 @@ r.onload=function(){
 try{
 var arr=JSON.parse(r.result);
 if(Object.prototype.toString.call(arr)!=="[object Array]"||!arr.length) throw new Error("empty");
-for(var k=0;k<arr.length;k++){ if(!arr[k]||typeof arr[k].name!=="string") throw new Error("bad");}
+for(var k=0;k<arr.length;k++){
+if(!arr[k]||typeof arr[k].name!=="string") throw new Error("bad");
+if(!arr[k].kind) arr[k].kind="licai";
+}
 if(!confirm("备份中有 "+arr.length+" 条记录，将替换当前全部 "+data.length+" 条，继续吗？")) return;
 data=arr; editIndex=-1; resetForm(); saveData(); render();
+try{ localStorage.setItem(MIG_KEY,"1");}catch(e){}
 alert("导入成功");
 }catch(e){ alert("导入失败：文件不是有效的备份");}
 };
@@ -299,10 +355,12 @@ r.readAsText(file);
 
 document.getElementById("startDate").addEventListener("change",updateEndPreview);
 document.getElementById("holdDay").addEventListener("input",updateEndPreview);
+document.getElementById("kind").addEventListener("change",updateEndPreview);
 document.getElementById("importFile").addEventListener("change",function(e){
 if(e.target.files[0]) importJSON(e.target.files[0]);
 e.target.value="";
 });
+toggleKind();
 render();
 </script>
 </body>
